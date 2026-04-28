@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LotRR Digital Sheet</title>
+    <script src="https://cdn.tailwindcss.com"></script> 
+    <link href="https://fonts.googleapis.com/css2?family=Bilbo+Swash+Caps&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background-color: #2a2a2a; 
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            padding-bottom: 95px; 
+            overflow-x: hidden; 
+        }
+        
+        .sheet-container {
+            position: absolute; 
+            top: 0;
+            left: 50%;
+            width: 100%;
+            max-width: 1000px; 
+            transform: translateX(-50%);
+            transition: opacity 0.2s ease-out;
+            opacity: 1;
+            pointer-events: auto;
+            visibility: visible;
+            container-type: inline-size; 
+        }
+
+        .sheet-container.hidden-left,
+        .sheet-container.hidden-right { opacity: 0; pointer-events: none; visibility: hidden; }
+        .sheet-container.active-page { position: relative !important; }
+        
+        .sheet-bg { width: 100%; height: auto; display: block; }
+
+        .sheet-input {
+            position: absolute;
+            font-family: 'Bilbo Swash Caps', cursive; 
+            font-weight: bold; font-size: 1.6cqw; color: #000000; 
+            padding: 0 2px; box-sizing: border-box; text-align: center;
+            background-color: transparent; -webkit-text-size-adjust: 100%;
+            appearance: none; border-radius: 0; border: 1px dashed transparent; 
+            transition: color 0.2s; 
+        }
+
+        .penalty-active, .warning-active { color: #d00000 !important; }
+        .advantage-active { color: #27ae60 !important; }
+
+        textarea.sheet-input { text-align: left; padding: 2px 5px; }
+        
+        .sheet-input.editing-active {
+            background-color: rgba(173, 216, 230, 0.2); 
+            border: 1px dashed rgba(0, 0, 0, 0.4);
+        }
+
+        .sheet-input:focus {
+            outline: none; background-color: rgba(255, 255, 255, 0.9);
+            border: 2px solid #000000; z-index: 10;
+        }
+
+        .rollable:not(.editing-active), .clickable-feature:not(.editing-active) {
+            cursor: pointer; transition: background-color 0.2s;
+            -webkit-user-select: none; user-select: none; 
+            -webkit-touch-callout: none; touch-action: manipulation; 
+        }
+        .rollable:not(.editing-active):hover, .clickable-feature:not(.editing-active):hover {
+            background-color: rgba(212, 175, 55, 0.2); 
+        }
+
+        .bonus-input { font-size: 1.1cqw !important; padding: 0 !important; }
+
+        .sheet-checkbox {
+            position: absolute; cursor: pointer; color: #000000; 
+            font-family: sans-serif; font-weight: bold; font-size: 1cqw; 
+            line-height: 1; display: flex; align-items: center;
+            justify-content: center; box-sizing: border-box;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        .image-checkbox { background-size: contain; background-repeat: no-repeat; background-position: center; }
+        #Portrait { cursor: pointer; }
+
+        .hidden { display: none !important; }
+
+        #floating-menu {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; 
+            background-color: rgba(42, 42, 42, 0.95); z-index: 2000; display: flex;
+            flex-direction: column; align-items: center; justify-content: flex-start;
+            overflow-y: auto; padding-top: 40px; padding-bottom: 40px; box-sizing: border-box;
+            color: #e0d8c0; font-family: sans-serif;
+        }
+        #floating-menu h2 { font-family: serif; color: #d4af37; margin-bottom: 20px; }
+
+        .menu-block {
+            background-color: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 15px;
+            width: 80%; max-width: 400px; text-align: center; border: 1px solid #4a0000; flex-shrink: 0;
+        }
+        .menu-input { width: 100%; padding: 10px; margin-top: 10px; border-radius: 5px; border: none; text-align: center; }
+        .menu-btn {
+            background-color: #4a0000; color: white; padding: 15px 20px; margin-top: 10px;
+            border: none; border-radius: 5px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold;
+        }
+        .menu-btn.close { background-color: #333; margin-top: 20px; margin-bottom: 40px; width: 80%; max-width: 400px; flex-shrink: 0; }
+
+        input[type="file"] { display: none; }
+        .file-upload-label {
+            display: inline-block; background-color: #2c3e50; color: white; padding: 15px 20px; margin-top: 10px;
+            border-radius: 5px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; box-sizing: border-box;
+        }
+
+        #done-editing-btn {
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background-color: #27ae60; color: white; padding: 15px 30px; font-size: 18px; font-weight: bold;
+            border-radius: 30px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        #tab-container {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            display: flex; flex-direction: column; z-index: 1000;
+        }
+        #menu-bar-btn {
+            width: 100%; background-color: #2a2a2a; color: #d4af37; border: none; 
+            border-top: 2px solid #4a0000; padding: 8px 0; font-family: serif; font-size: 14px; 
+            cursor: pointer; letter-spacing: 2px; font-weight: bold; text-align: center;
+        }
+        #menu-bar-btn:hover { background-color: #3a0000; }
+        #tab-bar {
+            width: 100%; height: 60px; background-color: #1a1a1a; display: flex; 
+            justify-content: space-around; align-items: center; border-top: 1px solid #4a0000;
+        }
+        .tab-btn { flex-grow: 1; height: 100%; background: none; border: none; color: #888; font-family: serif; font-size: 16px; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { color: #d4af37; background-color: #2a2a2a; border-top: 4px solid #d4af37; }
+
+        #roll-menu {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(26, 26, 26, 0.98); border: 2px solid #d4af37; border-radius: 12px;
+            z-index: 3000; display: flex; flex-direction: column; padding: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+            gap: 5px; min-width: 250px;
+        }
+        .roll-menu-row { display: flex; justify-content: space-between; gap: 8px; }
+        .roll-menu-divider { height: 1px; background-color: #4a0000; margin: 8px 0 4px 0; }
+        .roll-menu-btn {
+            background: none; color: #d4af37; border: 1px solid #4a0000; padding: 12px 15px; font-family: sans-serif;
+            font-weight: bold; font-size: 16px; cursor: pointer; text-align: center; border-radius: 6px; flex: 1; background-color: #1a1a1a;
+        }
+        .roll-menu-btn:hover { background-color: #333; }
+        .roll-menu-btn.adv { color: #2ecc71; border-color: #2ecc71;}
+        .roll-menu-btn.dis { color: #e74c3c; border-color: #e74c3c;}
+        
+        .prof-btn { font-size: 14px; color: #888; background: #2a2a2a; border-color: #444; }
+        .prof-btn.active { color: #fff; background: #4a0000; border-color: #d4af37; }
+        
+        .roll-menu-cancel {
+            background-color: #333; color: white; border: 1px solid #4a0000; padding: 10px; margin-top: 5px;
+            font-family: sans-serif; font-weight: bold; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; box-sizing: border-box;
+        }
+        .roll-menu-cancel:hover { background-color: #444; }
+
+        #feature-help-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(26, 26, 26, 0.98); border: 2px solid #d4af37; border-radius: 12px;
+            z-index: 4000; display: flex; flex-direction: column; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            width: 90%; max-width: 500px; max-height: 80dvh;
+        }
+        #feature-help-title {
+            font-family: serif; color: #d4af37; font-size: 22px; margin-top: 0; margin-bottom: 10px; 
+            text-align: center; text-transform: capitalize; border-bottom: 1px solid #4a0000; padding-bottom: 10px;
+        }
+        #feature-help-desc {
+            font-family: sans-serif; font-size: 15px; color: #e0d8c0; line-height: 1.5;
+            overflow-y: auto; padding-right: 5px; margin-bottom: 15px; white-space: pre-wrap;
+        }
+
+        #backstory-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(26, 26, 26, 0.98); border: 2px solid #d4af37; border-radius: 12px;
+            z-index: 5000; display: flex; flex-direction: column; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            width: 90%; max-width: 600px;
+        }
+        #backstory-editor {
+            width: 100%; height: 50dvh; background: #1a1a1a; color: #e0d8c0; border: 1px solid #4a0000;
+            padding: 10px; font-family: sans-serif; font-size: 16px; resize: none; border-radius: 6px; box-sizing: border-box;
+        }
+        #backstory-editor:focus { outline: none; border-color: #d4af37; }
+        #backstory-warning { color: #ff4d4d; font-family: sans-serif; font-size: 14px; margin-top: 10px; font-weight: bold; text-align: center; }
+        .backstory-line.editing-active { cursor: pointer; }
+
+        /* --- HERO LEDGER STYLES --- */
+        #hero-ledger-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(26, 26, 26, 0.98); border: 2px solid #d4af37; border-radius: 12px;
+            z-index: 6000; display: flex; flex-direction: column; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            width: 90%; max-width: 500px; max-height: 80dvh;
+        }
+        #hero-ledger-list {
+            overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin: 15px 0;
+        }
+        .hero-card {
+            background-color: #1a1a1a; border: 1px solid #4a0000; border-radius: 8px; padding: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .hero-info { display: flex; flex-direction: column; }
+        .hero-name { font-family: serif; color: #d4af37; font-size: 20px; font-weight: bold; }
+        .hero-sub { font-family: sans-serif; color: #e0d8c0; font-size: 14px; margin-top: 4px; }
+        .hero-actions { display: flex; gap: 8px; }
+        .hero-btn { border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; padding: 8px 12px; }
+        .load-btn { background-color: #27ae60; color: white; }
+        .load-btn:hover { background-color: #2ecc71; }
+        .del-btn { background-color: #c0392b; color: white; padding: 8px; }
+        .del-btn:hover { background-color: #e74c3c; }
+
+    </style>
+</head>
+<body> 
+
+    <div id="floating-menu" class="hidden">
+        <h2>Module Settings</h2>
+        <div class="menu-block">
+            <label>Encounter+ IP Connection</label>
+            <input type="text" id="ep-address-menu" class="menu-input" placeholder="192.168.1.X:8080">
+            <button class="menu-btn" onclick="saveServerAddress()">Connect</button>
+        </div>
+        <div class="menu-block">
+            <label style="color:#d4af37; font-weight:bold;">Custom Dice Roll</label>
+            <input type="text" id="custom-roll-input" class="menu-input" placeholder="e.g. 2d6+4">
+            <button class="menu-btn" style="background-color: #27ae60;" onclick="sendCustomRoll()">🎲 Roll Dice</button>
+        </div>
+        <div class="menu-block">
+            <button class="menu-btn" style="background-color: #8e44ad;" onclick="openHeroLedger()">📖 Open Hero Ledger</button>
+            <button class="menu-btn" onclick="toggleEditMode()">✏️ Edit Character Sheet</button>
+            <button class="menu-btn" style="background-color: #2980b9;" onclick="exportCharacter()">💾 Export Current Hero (.json)</button>
+            <button class="menu-btn" style="background-color: #2c3e50;" onclick="exportAllCharacters()">💾 Export All Heroes (.json)</button>
+            <label class="file-upload-label">
+                📂 Import to Ledger (.json)
+                <input type="file" id="import-file" accept=".json" multiple onchange="importCharacter(event)">
+            </label>
+        </div>
+        <button class="menu-btn close" onclick="toggleMenu()">Close Menu</button>
+    </div>
+
+    <div id="hero-ledger-modal" class="hidden">
+        <button class="roll-menu-cancel" style="background-color: #2a2a2a; color: #d4af37; margin-bottom: 10px;" onclick="createNewHero()">📄 Create New Hero</button>
+        <h2 style="font-family: serif; color: #d4af37; font-size: 22px; margin-top: 0; text-align: center; border-bottom: 1px solid #4a0000; padding-bottom: 10px;">Hero Ledger</h2>
+        <button class="roll-menu-cancel" style="background-color: #27ae60; margin-top: 5px;" onclick="saveCurrentHeroToRoster()">➕ Save Current Hero</button>
+        <div id="hero-ledger-list">
+            </div>
+        <button class="roll-menu-cancel" onclick="closeHeroLedger()">Close</button>
+    </div>
+
+    <div id="roll-menu" class="hidden">
+        <div class="roll-menu-row">
+            <button class="roll-menu-btn adv" onclick="executeMenuRoll('adv')">Advantage</button>
+            <button class="roll-menu-btn normal" onclick="executeMenuRoll('normal')">Normal</button>
+            <button class="roll-menu-btn dis" onclick="executeMenuRoll('dis')">Disadvantage</button>
+        </div>
+        <div id="roll-menu-prof-row" class="roll-menu-row" style="margin-top: 5px;">
+            <button id="prof-btn-1" class="roll-menu-btn prof-btn" onclick="setRollProfState(1)">Half Prof</button>
+            <button id="prof-btn-2" class="roll-menu-btn prof-btn" onclick="setRollProfState(2)">Prof</button>
+            <button id="prof-btn-3" class="roll-menu-btn prof-btn" onclick="setRollProfState(3)">Double Prof</button>
+        </div>
+        <div class="roll-menu-divider"></div>
+        <input type="text" id="roll-extra-mod" class="menu-input" placeholder="Extra Mod (+2, -1d4)" style="margin-top: 0; background: #2a2a2a; color: #e0d8c0;">
+        <button class="roll-menu-cancel" onclick="closeRollMenu()">Cancel</button>
+    </div>
+
+    <div id="feature-help-modal" class="hidden">
+        <h2 id="feature-help-title">Feature Title</h2>
+        <div id="feature-help-desc">Feature description goes here.</div>
+        <button class="roll-menu-cancel" onclick="closeFeatureHelp()">Close</button>
+    </div>
+
+    <div id="backstory-modal" class="hidden">
+        <h2 style="font-family: serif; color: #d4af37; font-size: 22px; margin-top: 0; text-align: center; border-bottom: 1px solid #4a0000; padding-bottom: 10px;">Character Backstory</h2>
+        <textarea id="backstory-editor" placeholder="Write your backstory here..."></textarea>
+        <div id="backstory-warning" class="hidden">Warning: Text may be too long to fit cleanly.</div>
+        <button class="roll-menu-cancel" style="background-color: #27ae60;" onclick="saveAndCloseBackstory()">Save & Close</button>
+    </div>
+
+    <div id="done-editing-btn" class="hidden" onclick="toggleEditMode()">✅ Done Editing</div>
+
+    <div class="sheet-container active-page" id="page-1">
+        <img src="images/lotrrCharacterSheet1.png" alt="Character Sheet Page 1" class="sheet-bg">
+
+        <input type="text" id="Name" class="sheet-input" style="left: 5.12%; top: 7.64%; width: 37.08%; height: 3.26%; font-size: 3cqw;">
+        <input type="text" id="Calling-and-Level" class="sheet-input" style="left: 43.78%; top: 6.62%; width: 15.65%; height: 1.78%; text-align: left;">
+        <input type="text" id="Culture" class="sheet-input" style="left: 43.78%; top: 9.50%; width: 15.65%; height: 1.78%; text-align: left;">
+        <input type="text" id="ShadowPath" class="sheet-input" style="left: 60.58%; top: 9.50%; width: 15.65%; height: 1.78%; text-align: left;">
+        <input type="text" id="DistinctFeatures" class="sheet-input" style="left: 60.58%; top: 6.70%; width: 15.65%; height: 1.78%; text-align: left;">
+        <input type="text" id="PlayerName" class="sheet-input" style="left: 77.38%; top: 6.68%; width: 15.65%; height: 1.78%; text-align: left;">
+        
+        <input type="text" id="ExpPoints" class="sheet-input" style="left: 77.38%; top: 9.48%; width: 10.00%; height: 1.78%; text-align: left;">
+        <input type="text" id="LevelDisplay" class="sheet-input auto-calc" style="left: 87.38%; top: 9.48%; width: 5.65%; height: 1.78%;" readonly>
+
+        <input type="text" id="StrMod" class="sheet-input auto-calc rollable" style="left: 5.48%; top: 16.41%; width: 7.04%; height: 3.60%;" readonly>
+        <input type="text" id="DexMod" class="sheet-input auto-calc rollable" style="left: 5.48%; top: 26.21%; width: 7.04%; height: 3.60%;" readonly>
+        <input type="text" id="ConMod" class="sheet-input auto-calc rollable" style="left: 5.48%; top: 36.01%; width: 7.04%; height: 3.60%;" readonly>
+        <input type="text" id="IntMod" class="sheet-input auto-calc rollable" style="left: 5.48%; top: 45.71%; width: 7.04%; height: 3.60%;" readonly>
+        <input type="text" id="WisMod" class="sheet-input auto-calc rollable" style="left: 5.48%; top: 55.51%; width: 7.04%; height: 3.60%;" readonly>
+        <input type="text" id="ChaMod" class="sheet-input auto-calc rollable" style="left: 5.48%; top: 65.31%; width: 7.04%; height: 3.60%;" readonly>
+
+        <input type="text" id="Str" class="sheet-input" style="left: 6.48%; top: 20.31%; width: 4.44%; height: 3.40%;">
+        <input type="text" id="Dex" class="sheet-input" style="left: 6.58%; top: 30.11%; width: 4.44%; height: 3.40%;">
+        <input type="text" id="Con" class="sheet-input" style="left: 6.58%; top: 39.91%; width: 4.44%; height: 3.40%;">
+        <input type="text" id="Int" class="sheet-input" style="left: 6.58%; top: 49.71%; width: 4.44%; height: 3.40%;">
+        <input type="text" id="Wis" class="sheet-input" style="left: 6.48%; top: 59.51%; width: 4.44%; height: 3.40%;">
+        <input type="text" id="Cha" class="sheet-input" style="left: 6.58%; top: 69.21%; width: 4.44%; height: 3.40%;">
+
+        <input type="text" id="PassPerc" class="sheet-input" style="left: 4.98%; top: 75.41%; width: 5.64%; height: 4.30%;">
+        <div id="Insp" class="sheet-checkbox image-checkbox" style="left: 14.96%; top: 15.61%; width: 5.42%; height: 4.26%;" onclick="toggleInspiration(this)"></div>
+        <input type="text" id="ProfBonus" class="sheet-input auto-calc" style="left: 14.96%; top: 21.88%; width: 5.42%; height: 4.26%;" readonly>
+        <input type="text" id="ArmorClass" class="sheet-input" style="left: 37.80%; top: 16.83%; width: 6.98%; height: 3.06%;">
+        <input type="text" id="Initiative" class="sheet-input rollable" style="left: 46.70%; top: 16.79%; width: 6.98%; height: 3.06%;">
+        <input type="text" id="Speed" class="sheet-input" style="left: 55.50%; top: 16.85%; width: 6.98%; height: 3.06%;">
+
+        <input type="text" id="CarriedWeight" class="sheet-input auto-calc" style="left: 68.66%; top: 16.44%; width: 7.34%; height: 3.08%;" readonly>
+        <div id="Encumbered" class="sheet-checkbox" style="left: 77.68%; top: 17.20%; width: 0.90%; height: 0.75%;"></div>
+        <input type="text" class="clickable-feature" value="Encumbered" style="position: absolute; left: 79.50%; top: 16.50%; width: 15%; height: 2%; color: transparent; background: transparent; border: none; outline: none; cursor: pointer;" readonly>
+        <div id="HeavilyEncumbered" class="sheet-checkbox" style="left: 77.68%; top: 19.47%; width: 0.90%; height: 0.75%;"></div>
+        <input type="text" class="clickable-feature" value="Heavily Encumbered" style="position: absolute; left: 79.50%; top: 18.80%; width: 15%; height: 2%; color: transparent; background: transparent; border: none; outline: none; cursor: pointer;" readonly>
+
+        <input type="text" id="MaxHP" class="sheet-input" style="left: 38.57%; top: 23.46%; width: 10.67%; height: 2.16%;">
+        <input type="text" id="TempHP" class="sheet-input live-box" style="left: 52.19%; top: 25.97%; width: 7.54%; height: 4.14%;">
+        <input type="text" id="CurrentHP" class="sheet-input live-box" style="left: 38.70%; top: 27.37%; width: 10.47%; height: 5.40%; font-size: 3cqw%;">
+        <input type="text" id="HitDice" class="sheet-input live-box rollable" style="left: 38.90%; top: 37.05%; width: 9.07%; height: 2.52%;">
+        
+        <div id="DeathSaveSuccess-1" class="sheet-checkbox" style="left: 57.78%; top: 37.00%; width: 0.90%; height: 0.75%;" onclick="cycleCheck(this)"></div>
+        <div id="DeathSaveSuccess-2" class="sheet-checkbox" style="left: 59.36%; top: 37.00%; width: 0.90%; height: 0.75%;" onclick="cycleCheck(this)"></div>
+        <div id="DeathSaveSuccess-3" class="sheet-checkbox" style="left: 60.94%; top: 37.00%; width: 0.90%; height: 0.75%;" onclick="cycleCheck(this)"></div>
+        
+        <div id="DeathSaveFail-1" class="sheet-checkbox" style="left: 57.78%; top: 38.40%; width: 0.90%; height: 0.75%;" onclick="cycleCheck(this)"></div>
+        <div id="DeathSaveFail-2" class="sheet-checkbox" style="left: 59.36%; top: 38.40%; width: 0.90%; height: 0.75%;" onclick="cycleCheck(this)"></div>
+        <div id="DeathSaveFail-3" class="sheet-checkbox" style="left: 60.94%; top: 38.40%; width: 0.90%; height: 0.75%;" onclick="cycleCheck(this)"></div>
+
+        <input type="text" id="AtkName-1" class="sheet-input" style="left: 37.22%; top: 46.49%; width: 8.07%; height: 1.60%;">
+        <input type="text" id="AtkName-2" class="sheet-input" style="left: 37.22%; top: 48.56%; width: 8.07%; height: 1.60%;">
+        <input type="text" id="AtkName-3" class="sheet-input" style="left: 37.22%; top: 50.63%; width: 8.07%; height: 1.60%;">
+        <input type="text" id="AtkName-4" class="sheet-input" style="left: 37.22%; top: 52.80%; width: 8.07%; height: 1.60%;">
+        
+        <input type="text" id="AtkBonus-1" class="sheet-input rollable" style="left: 46.31%; top: 46.49%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkBonus-2" class="sheet-input rollable" style="left: 46.31%; top: 48.56%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkBonus-3" class="sheet-input rollable" style="left: 46.31%; top: 50.63%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkBonus-4" class="sheet-input rollable" style="left: 46.31%; top: 52.80%; width: 4.87%; height: 1.60%;">
+        
+        <input type="text" id="AtkDamage-1" class="sheet-input rollable" style="left: 52.24%; top: 46.49%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkDamage-2" class="sheet-input rollable" style="left: 52.24%; top: 48.56%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkDamage-3" class="sheet-input rollable" style="left: 52.24%; top: 50.63%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkDamage-4" class="sheet-input rollable" style="left: 52.24%; top: 52.80%; width: 4.87%; height: 1.60%;">
+        
+        <input type="text" id="AtkRange-1" class="sheet-input" style="left: 58.06%; top: 46.49%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkRange-2" class="sheet-input" style="left: 58.06%; top: 48.56%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkRange-3" class="sheet-input" style="left: 58.06%; top: 50.63%; width: 4.87%; height: 1.60%;">
+        <input type="text" id="AtkRange-4" class="sheet-input" style="left: 58.06%; top: 52.80%; width: 4.87%; height: 1.60%;">
+
+        <div id="StrSaveProf" class="sheet-checkbox" style="left: 16.45%; top: 31.46%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="DexSaveProf" class="sheet-checkbox" style="left: 16.45%; top: 32.91%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="ConSaveProf" class="sheet-checkbox" style="left: 16.45%; top: 34.25%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="IntSaveProf" class="sheet-checkbox" style="left: 16.45%; top: 35.69%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="WisSaveProf" class="sheet-checkbox" style="left: 16.45%; top: 37.03%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="ChaSaveProf" class="sheet-checkbox" style="left: 16.45%; top: 38.47%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+
+        <input type="text" id="StrSaveBonus" class="sheet-input bonus-input auto-calc rollable" style="left: 18.11%; top: 31.21%; width: 2.33%; height: 1.50%;" readonly>
+        <input type="text" id="DexSaveBonus" class="sheet-input bonus-input auto-calc rollable" style="left: 18.11%; top: 32.66%; width: 2.33%; height: 1.50%;" readonly>
+        <input type="text" id="ConSaveBonus" class="sheet-input bonus-input auto-calc rollable" style="left: 18.11%; top: 34.00%; width: 2.33%; height: 1.50%;" readonly>
+        <input type="text" id="IntSaveBonus" class="sheet-input bonus-input auto-calc rollable" style="left: 18.11%; top: 35.44%; width: 2.33%; height: 1.50%;" readonly>
+        <input type="text" id="WisSaveBonus" class="sheet-input bonus-input auto-calc rollable" style="left: 18.11%; top: 36.78%; width: 2.33%; height: 1.50%;" readonly>
+        <input type="text" id="ChaSaveBonus" class="sheet-input bonus-input auto-calc rollable" style="left: 18.11%; top: 38.22%; width: 2.33%; height: 1.50%;" readonly>
+
+        <div id="SkillProf-1" class="sheet-checkbox" style="left: 16.48%; top: 45.31%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-2" class="sheet-checkbox" style="left: 16.48%; top: 46.70%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-3" class="sheet-checkbox" style="left: 16.48%; top: 48.10%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-4" class="sheet-checkbox" style="left: 16.48%; top: 49.49%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-5" class="sheet-checkbox" style="left: 16.48%; top: 50.89%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-6" class="sheet-checkbox" style="left: 16.48%; top: 52.28%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-7" class="sheet-checkbox" style="left: 16.48%; top: 53.67%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-8" class="sheet-checkbox" style="left: 16.48%; top: 55.07%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-9" class="sheet-checkbox" style="left: 16.48%; top: 56.46%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-10" class="sheet-checkbox" style="left: 16.48%; top: 57.85%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-11" class="sheet-checkbox" style="left: 16.48%; top: 59.25%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-12" class="sheet-checkbox" style="left: 16.48%; top: 60.64%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-13" class="sheet-checkbox" style="left: 16.48%; top: 62.04%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-14" class="sheet-checkbox" style="left: 16.48%; top: 63.43%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-15" class="sheet-checkbox" style="left: 16.48%; top: 64.82%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-16" class="sheet-checkbox" style="left: 16.48%; top: 66.22%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-17" class="sheet-checkbox" style="left: 16.48%; top: 67.61%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-18" class="sheet-checkbox" style="left: 16.48%; top: 69.01%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+        <div id="SkillProf-19" class="sheet-checkbox" style="left: 16.48%; top: 70.40%; width: 0.93%; height: 0.76%;" onclick="cycleProficiency(this)"></div>
+
+        <input type="text" id="SkillBonus-1" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 45.08%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-2" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 46.47%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-3" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 47.87%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-4" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 49.26%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-5" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 50.66%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-6" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 52.05%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-7" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 53.44%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-8" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 54.84%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-9" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 56.23%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-10" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 57.62%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-11" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 59.02%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-12" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 60.41%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-13" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 61.81%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-14" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 63.20%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-15" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 64.59%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-16" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 65.99%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-17" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 67.38%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-18" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 68.78%; width: 2.39%; height: 1.50%;" readonly>
+        <input type="text" id="SkillBonus-19" class="sheet-input bonus-input auto-calc rollable" style="left: 18.14%; top: 70.17%; width: 2.39%; height: 1.50%;" readonly>
+
+        <div id="Miserable" class="sheet-checkbox auto-calc" style="left: 86.36%; top: 28.26%; width: 0.90%; height: 0.75%;"></div>
+        <input type="text" class="clickable-feature" value="Miserable" style="position: absolute; left: 88.00%; top: 27.50%; width: 10%; height: 2%; color: transparent; background: transparent; border: none; outline: none; cursor: pointer;" readonly>
+        <div id="Anguished" class="sheet-checkbox auto-calc" style="left: 86.36%; top: 30.41%; width: 0.90%; height: 0.75%;"></div>
+        <input type="text" class="clickable-feature" value="Anguished" style="position: absolute; left: 88.00%; top: 29.70%; width: 10%; height: 2%; color: transparent; background: transparent; border: none; outline: none; cursor: pointer;" readonly>
+        
+        <input type="text" id="ShadowScore" class="sheet-input live-box" style="left: 68.79%; top: 27.25%; width: 6.94%; height: 2.70%;">
+        <input type="text" id="ShadowScars" class="sheet-input" style="left: 77.76%; top: 27.25%; width: 6.94%; height: 2.74%;">
+
+        <input type="text" id="ShadowPath-Line1" class="sheet-input" style="left: 68.20%; top: 32.74%; width: 26.02%; height: 1.74%; text-align: left;">
+        <input type="text" id="ShadowPath-Line2" class="sheet-input" style="left: 68.20%; top: 34.75%; width: 26.02%; height: 1.74%; text-align: left;">
+        <input type="text" id="ShadowPath-Line3" class="sheet-input" style="left: 68.20%; top: 36.57%; width: 26.02%; height: 1.74%; text-align: left;">
+        <input type="text" id="ShadowPath-Line4" class="sheet-input" style="left: 68.20%; top: 38.58%; width: 26.02%; height: 1.74%; text-align: left;">
+
+        <input type="text" id="Feature-1" class="sheet-input clickable-feature" style="left: 68.20%; top: 45.36%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-2" class="sheet-input clickable-feature" style="left: 68.20%; top: 47.46%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-3" class="sheet-input clickable-feature" style="left: 68.20%; top: 49.57%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-4" class="sheet-input clickable-feature" style="left: 68.20%; top: 51.67%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-5" class="sheet-input clickable-feature" style="left: 68.20%; top: 53.77%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-6" class="sheet-input clickable-feature" style="left: 68.20%; top: 55.88%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-7" class="sheet-input clickable-feature" style="left: 68.20%; top: 57.98%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-8" class="sheet-input clickable-feature" style="left: 68.20%; top: 60.08%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-9" class="sheet-input clickable-feature" style="left: 68.20%; top: 62.19%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-10" class="sheet-input clickable-feature" style="left: 68.20%; top: 64.29%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-11" class="sheet-input clickable-feature" style="left: 68.20%; top: 66.40%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-12" class="sheet-input clickable-feature" style="left: 68.20%; top: 68.50%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-13" class="sheet-input clickable-feature" style="left: 68.20%; top: 70.60%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-14" class="sheet-input clickable-feature" style="left: 68.20%; top: 72.71%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-15" class="sheet-input clickable-feature" style="left: 68.20%; top: 74.81%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-16" class="sheet-input clickable-feature" style="left: 68.20%; top: 76.91%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-17" class="sheet-input clickable-feature" style="left: 68.20%; top: 79.02%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-18" class="sheet-input clickable-feature" style="left: 68.20%; top: 81.12%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-19" class="sheet-input clickable-feature" style="left: 68.20%; top: 83.22%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-20" class="sheet-input clickable-feature" style="left: 68.20%; top: 85.33%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-21" class="sheet-input clickable-feature" style="left: 68.20%; top: 87.43%; width: 25.71%; height: 1.74%; text-align: left;">
+        <input type="text" id="Feature-22" class="sheet-input clickable-feature" style="left: 68.20%; top: 89.53%; width: 25.71%; height: 1.74%; text-align: left;">
+
+        <input type="text" id="CopperCoinCount" class="sheet-input live-box weight-trigger" style="left: 37.68%; top: 77.56%; width: 4.44%; height: 3.40%;">
+        <input type="text" id="SilverPennyCount" class="sheet-input live-box weight-trigger" style="left: 37.68%; top: 82.91%; width: 4.44%; height: 3.40%;">
+        <input type="text" id="GoldPieceCount" class="sheet-input live-box weight-trigger" style="left: 37.58%; top: 88.31%; width: 4.44%; height: 3.40%;">
+
+        <input type="text" id="Equipment-1" class="sheet-input clickable-feature weight-trigger live-box" style="left: 44.65%; top: 77.41%; width: 17.54%; height: 1.46%; text-align: left;">
+        <input type="text" id="Equipment-2" class="sheet-input clickable-feature weight-trigger live-box" style="left: 44.65%; top: 79.47%; width: 17.54%; height: 1.46%; text-align: left;">
+        <input type="text" id="Equipment-3" class="sheet-input clickable-feature weight-trigger live-box" style="left: 44.65%; top: 81.53%; width: 17.54%; height: 1.46%; text-align: left;">
+        <input type="text" id="Equipment-4" class="sheet-input clickable-feature weight-trigger live-box" style="left: 44.65%; top: 83.69%; width: 17.54%; height: 1.46%; text-align: left;">
+        <input type="text" id="Equipment-5" class="sheet-input clickable-feature weight-trigger live-box" style="left: 44.65%; top: 85.85%; width: 17.54%; height: 1.46%; text-align: left;">
+        <input type="text" id="Equipment-6" class="sheet-input clickable-feature weight-trigger live-box" style="left: 44.65%; top: 87.71%; width: 17.54%; height: 1.46%; text-align: left;">
+        <input type="text" id="Equipment-7" class="sheet-input clickable-feature weight-trigger live-box" style="left: 44.65%; top: 89.87%; width: 17.54%; height: 1.46%; text-align: left;">
+
+        <input type="text" id="Reward-1" class="sheet-input clickable-feature" style="left: 37.17%; top: 59.52%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="Reward-2" class="sheet-input clickable-feature" style="left: 37.17%; top: 61.60%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="Reward-3" class="sheet-input clickable-feature" style="left: 37.17%; top: 63.68%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="Reward-4" class="sheet-input clickable-feature" style="left: 37.17%; top: 65.76%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="Reward-5" class="sheet-input clickable-feature" style="left: 37.17%; top: 67.84%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="Reward-6" class="sheet-input clickable-feature" style="left: 37.17%; top: 69.92%; width: 12.69%; height: 1.48%; text-align: left;">
+
+        <input type="text" id="MagicTreasure-1" class="sheet-input clickable-feature" style="left: 50.17%; top: 59.50%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="MagicTreasure-2" class="sheet-input clickable-feature" style="left: 50.17%; top: 61.58%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="MagicTreasure-3" class="sheet-input clickable-feature" style="left: 50.17%; top: 63.66%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="MagicTreasure-4" class="sheet-input clickable-feature" style="left: 50.17%; top: 65.74%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="MagicTreasure-5" class="sheet-input clickable-feature" style="left: 50.17%; top: 67.82%; width: 12.69%; height: 1.48%; text-align: left;">
+        <input type="text" id="MagicTreasure-6" class="sheet-input clickable-feature" style="left: 50.17%; top: 69.90%; width: 12.69%; height: 1.48%; text-align: left;">
+
+        <input type="text" id="Proficiencies-1" class="sheet-input clickable-feature" style="left: 6.08%; top: 82.25%; width: 25.81%; height: 1.48%; text-align: left;">
+        <input type="text" id="Proficiencies-2" class="sheet-input clickable-feature" style="left: 6.08%; top: 84.03%; width: 25.81%; height: 1.48%; text-align: left;">
+        <input type="text" id="Proficiencies-3" class="sheet-input clickable-feature" style="left: 6.08%; top: 86.01%; width: 25.71%; height: 1.48%; text-align: left;">
+        <input type="text" id="Proficiencies-4" class="sheet-input clickable-feature" style="left: 6.08%; top: 87.79%; width: 25.71%; height: 1.48%; text-align: left;">
+        <input type="text" id="Proficiencies-5" class="sheet-input clickable-feature" style="left: 6.08%; top: 89.87%; width: 25.71%; height: 1.48%; text-align: left;">
+    </div>
+    <div class="sheet-container hidden-right" id="page-2">
+        <img src="images/lotrrCharacterSheet2.png" alt="Character Sheet Page 2" class="sheet-bg">
+
+        <input type="file" id="portrait-upload" accept="image/*" onchange="loadPortrait(event)">
+
+        <input type="text" id="P2-Name" class="sheet-input" style="left: 5.12%; top: 7.64%; width: 37.18%; height: 3.26%; font-size: 3cqw;">
+        <input type="text" id="Eyes" class="sheet-input" style="left: 43.75%; top: 9.64%; width: 15.65%; height: 1.64%; text-align: left;">
+        <input type="text" id="Age" class="sheet-input" style="left: 43.75%; top: 6.78%; width: 15.65%; height: 1.64%; text-align: left;">
+        <input type="text" id="Height" class="sheet-input" style="left: 60.55%; top: 6.82%; width: 15.65%; height: 1.64%; text-align: left;">
+        <input type="text" id="Skin" class="sheet-input" style="left: 60.55%; top: 9.66%; width: 15.65%; height: 1.64%; text-align: left;">
+        <input type="text" id="Weight" class="sheet-input" style="left: 77.27%; top: 6.84%; width: 15.75%; height: 1.64%; text-align: left;">
+        <input type="text" id="Hair" class="sheet-input" style="left: 77.27%; top: 9.68%; width: 15.75%; height: 1.64%; text-align: left;">
+
+        <div id="Portrait" class="sheet-checkbox" style="left: 5.21%; top: 16.81%; width: 27.61%; height: 26.19%; background-size: cover; background-position: center; border: 1px dashed transparent;" onclick="if(isEditMode) document.getElementById('portrait-upload').click()"></div>
+
+        <input type="text" id="FellowshipPoints" class="sheet-input live-box" style="left: 39.80%; top: 17.01%; width: 5.68%; height: 4.34%; font-size: 3cqw;">
+
+        <input type="text" id="Patron-1" class="sheet-input" style="left: 37.17%; top: 22.27%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-2" class="sheet-input" style="left: 37.17%; top: 24.41%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-3" class="sheet-input" style="left: 37.17%; top: 26.55%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-4" class="sheet-input" style="left: 37.17%; top: 28.59%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-5" class="sheet-input" style="left: 37.17%; top: 30.63%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-6" class="sheet-input" style="left: 37.17%; top: 32.67%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-7" class="sheet-input" style="left: 37.17%; top: 34.61%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-8" class="sheet-input" style="left: 37.17%; top: 36.75%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-9" class="sheet-input" style="left: 37.17%; top: 38.79%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-10" class="sheet-input" style="left: 37.17%; top: 40.93%; width: 27.18%; height: 1.54%; text-align: left;">
+        
+        <input type="text" id="Patron-11" class="sheet-input" style="left: 67.07%; top: 15.91%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-12" class="sheet-input" style="left: 67.07%; top: 18.05%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-13" class="sheet-input" style="left: 67.07%; top: 20.19%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-14" class="sheet-input" style="left: 67.07%; top: 22.23%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-15" class="sheet-input" style="left: 67.07%; top: 24.37%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-16" class="sheet-input" style="left: 67.07%; top: 26.51%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-17" class="sheet-input" style="left: 67.07%; top: 28.65%; width: 27.18%; height: 1.54%; text-align: left;">
+        <input type="text" id="Patron-18" class="sheet-input" style="left: 67.07%; top: 30.69%; width: 27.18%; height: 1.54%; text-align: left;">
+
+        <input type="text" id="HeirName" class="sheet-input" style="left: 68.64%; top: 35.11%; width: 23.86%; height: 1.36%; text-align: left;">
+        <input type="text" id="HeirInvestment" class="sheet-input" style="left: 68.64%; top: 37.57%; width: 23.86%; height: 1.26%; text-align: left;">
+
+        <input type="text" id="AddFeatures-1" class="sheet-input clickable-feature" style="left: 37.21%; top: 48.44%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-2" class="sheet-input clickable-feature" style="left: 37.21%; top: 50.56%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-3" class="sheet-input clickable-feature" style="left: 37.21%; top: 52.68%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-4" class="sheet-input clickable-feature" style="left: 37.21%; top: 54.70%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-5" class="sheet-input clickable-feature" style="left: 37.21%; top: 56.62%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-6" class="sheet-input clickable-feature" style="left: 37.21%; top: 58.64%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-7" class="sheet-input clickable-feature" style="left: 37.21%; top: 60.86%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-8" class="sheet-input clickable-feature" style="left: 37.21%; top: 62.88%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-9" class="sheet-input clickable-feature" style="left: 37.21%; top: 65.00%; width: 27.14%; height: 1.72%; text-align: left;">
+        
+        <input type="text" id="AddFeatures-10" class="sheet-input clickable-feature" style="left: 68.31%; top: 48.46%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-11" class="sheet-input clickable-feature" style="left: 68.31%; top: 50.48%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-12" class="sheet-input clickable-feature" style="left: 68.31%; top: 52.60%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-13" class="sheet-input clickable-feature" style="left: 68.31%; top: 54.62%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-14" class="sheet-input clickable-feature" style="left: 68.31%; top: 56.64%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-15" class="sheet-input clickable-feature" style="left: 68.31%; top: 58.66%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-16" class="sheet-input clickable-feature" style="left: 68.31%; top: 60.88%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-17" class="sheet-input clickable-feature" style="left: 68.31%; top: 62.90%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddFeatures-18" class="sheet-input clickable-feature" style="left: 68.31%; top: 65.02%; width: 25.64%; height: 1.72%; text-align: left;">
+
+        <input type="text" id="AddEquipment-1" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 73.12%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-2" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 75.24%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-3" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 77.36%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-4" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 79.38%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-5" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 81.40%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-6" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 83.43%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-7" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 85.55%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-8" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 87.57%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-9" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 89.69%; width: 27.14%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-10" class="sheet-input clickable-feature weight-trigger live-box" style="left: 37.21%; top: 91.81%; width: 27.14%; height: 1.72%; text-align: left;">
+        
+        <input type="text" id="AddEquipment-11" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 73.04%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-12" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 75.26%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-13" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 77.38%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-14" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 79.40%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-15" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 81.43%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-16" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 83.45%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-17" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 85.57%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-18" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 87.59%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-19" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 89.71%; width: 25.64%; height: 1.72%; text-align: left;">
+        <input type="text" id="AddEquipment-20" class="sheet-input clickable-feature weight-trigger live-box" style="left: 68.31%; top: 91.83%; width: 25.64%; height: 1.72%; text-align: left;">
+
+        <input type="text" id="Backstory-1" class="sheet-input backstory-line" style="left: 6.15%; top: 48.46%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-2" class="sheet-input backstory-line" style="left: 6.15%; top: 50.48%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-3" class="sheet-input backstory-line" style="left: 6.15%; top: 52.70%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-4" class="sheet-input backstory-line" style="left: 6.15%; top: 54.72%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-5" class="sheet-input backstory-line" style="left: 6.15%; top: 56.74%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-6" class="sheet-input backstory-line" style="left: 6.15%; top: 58.66%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-7" class="sheet-input backstory-line" style="left: 6.15%; top: 60.78%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-8" class="sheet-input backstory-line" style="left: 6.15%; top: 62.90%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-9" class="sheet-input backstory-line" style="left: 6.15%; top: 65.02%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-10" class="sheet-input backstory-line" style="left: 6.15%; top: 67.04%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-11" class="sheet-input backstory-line" style="left: 6.15%; top: 69.06%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-12" class="sheet-input backstory-line" style="left: 6.15%; top: 71.08%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-13" class="sheet-input backstory-line" style="left: 6.15%; top: 73.10%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-14" class="sheet-input backstory-line" style="left: 6.15%; top: 75.22%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-15" class="sheet-input backstory-line" style="left: 6.15%; top: 77.35%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-16" class="sheet-input backstory-line" style="left: 6.15%; top: 79.37%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-17" class="sheet-input backstory-line" style="left: 6.15%; top: 81.39%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-18" class="sheet-input backstory-line" style="left: 6.15%; top: 83.41%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-19" class="sheet-input backstory-line" style="left: 6.15%; top: 85.53%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-20" class="sheet-input backstory-line" style="left: 6.15%; top: 87.65%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-21" class="sheet-input backstory-line" style="left: 6.15%; top: 89.77%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+        <input type="text" id="Backstory-22" class="sheet-input backstory-line" style="left: 6.15%; top: 91.79%; width: 25.68%; height: 1.72%; text-align: left;" readonly>
+    </div>
+
+    <div class="sheet-container hidden-right" id="page-3">
+        <img src="images/lotrrJourneyLog.png" alt="Character Sheet Page 3" class="sheet-bg">
+
+        <input type="text" id="Year" class="sheet-input live-box" style="left: 3.52%; top: 12.11%; width: 13.26%; height: 2.20%; text-align: left;">
+        <input type="text" id="Season" class="sheet-input live-box" style="left: 3.52%; top: 16.72%; width: 13.26%; height: 2.20%; text-align: left;">
+        <input type="text" id="JourneyFrom" class="sheet-input live-box" style="left: 3.52%; top: 21.32%; width: 13.26%; height: 2.20%; text-align: left;">
+        <input type="text" id="Destination" class="sheet-input live-box" style="left: 3.52%; top: 26.02%; width: 13.26%; height: 2.20%; text-align: left;">
+        <input type="text" id="DaysOfTravel" class="sheet-input live-box" style="left: 3.52%; top: 30.63%; width: 13.26%; height: 2.20%; text-align: left;">
+
+        <input type="text" id="CompanyMember-1" class="sheet-input live-box" style="left: 19.42%; top: 12.82%; width: 10.76%; height: 2.20%; text-align: left;">
+        <input type="text" id="CompanyMember-2" class="sheet-input live-box" style="left: 19.42%; top: 15.82%; width: 10.76%; height: 2.20%; text-align: left;">
+        <input type="text" id="CompanyMember-3" class="sheet-input live-box" style="left: 19.42%; top: 18.72%; width: 10.76%; height: 2.20%; text-align: left;">
+        <input type="text" id="CompanyMember-4" class="sheet-input live-box" style="left: 19.42%; top: 21.73%; width: 10.76%; height: 2.20%; text-align: left;">
+        <input type="text" id="CompanyMember-5" class="sheet-input live-box" style="left: 19.42%; top: 24.73%; width: 10.76%; height: 2.20%; text-align: left;">
+        <input type="text" id="CompanyMember-6" class="sheet-input live-box" style="left: 19.42%; top: 27.63%; width: 10.76%; height: 2.20%; text-align: left;">
+        <input type="text" id="CompanyMember-7" class="sheet-input live-box" style="left: 19.42%; top: 30.64%; width: 10.76%; height: 2.20%; text-align: left;">
+
+        <input type="text" id="JourneyRole-1" class="sheet-input auto-calc" value="Guide" style="left: 30.47%; top: 12.82%; width: 6.35%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="JourneyRole-2" class="sheet-input auto-calc" value="Hunter" style="left: 30.47%; top: 15.82%; width: 6.35%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="JourneyRole-3" class="sheet-input auto-calc" value="Lookout" style="left: 30.47%; top: 18.72%; width: 6.35%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="JourneyRole-4" class="sheet-input auto-calc" value="Scout" style="left: 30.47%; top: 21.72%; width: 6.35%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        
+        <select id="JourneyRole-5" class="sheet-input live-box" style="left: 30.47%; top: 24.72%; width: 6.35%; height: 2.20%; font-size: 1.2cqw; text-align: center; text-align-last: center; appearance: none; -webkit-appearance: none;">
+            <option value=""></option>
+            <option value="Hunter">Hunter</option>
+            <option value="Lookout">Lookout</option>
+            <option value="Scout">Scout</option>
+        </select>
+        <select id="JourneyRole-6" class="sheet-input live-box" style="left: 30.47%; top: 27.63%; width: 6.35%; height: 2.20%; font-size: 1.2cqw; text-align: center; text-align-last: center; appearance: none; -webkit-appearance: none;">
+            <option value=""></option>
+            <option value="Hunter">Hunter</option>
+            <option value="Lookout">Lookout</option>
+            <option value="Scout">Scout</option>
+        </select>
+        <select id="JourneyRole-7" class="sheet-input live-box" style="left: 30.47%; top: 30.63%; width: 6.35%; height: 2.20%; font-size: 1.2cqw; text-align: center; text-align-last: center; appearance: none; -webkit-appearance: none;">
+            <option value=""></option>
+            <option value="Hunter">Hunter</option>
+            <option value="Lookout">Lookout</option>
+            <option value="Scout">Scout</option>
+        </select>
+
+        <input type="text" id="AbilityCheck-1" class="sheet-input auto-calc rollable" value="Wisdom (Travel)" style="left: 37.24%; top: 12.82%; width: 11.76%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="AbilityCheck-2" class="sheet-input auto-calc rollable" value="Wisdom (Hunting)" style="left: 37.24%; top: 15.82%; width: 11.76%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="AbilityCheck-3" class="sheet-input auto-calc rollable" value="Wisdom (Perception)" style="left: 37.24%; top: 18.72%; width: 11.76%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="AbilityCheck-4" class="sheet-input auto-calc rollable" value="Wisdom (Explore)" style="left: 37.24%; top: 21.72%; width: 11.76%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="AbilityCheck-5" class="sheet-input auto-calc rollable" style="left: 37.24%; top: 24.72%; width: 11.76%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="AbilityCheck-6" class="sheet-input auto-calc rollable" style="left: 37.24%; top: 27.63%; width: 11.76%; height: 2.20%; font-size: 1.2cqw;" readonly>
+        <input type="text" id="AbilityCheck-7" class="sheet-input auto-calc rollable" style="left: 37.24%; top: 30.63%; width: 11.76%; height: 2.20%; font-size: 1.2cqw;" readonly>
+
+        <input type="text" id="MountName-1" class="sheet-input live-box" style="left: 51.43%; top: 12.82%; width: 9.70%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountName-2" class="sheet-input live-box" style="left: 51.43%; top: 15.72%; width: 9.70%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountName-3" class="sheet-input live-box" style="left: 51.43%; top: 18.72%; width: 9.70%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountName-4" class="sheet-input live-box" style="left: 51.43%; top: 21.72%; width: 9.70%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountName-5" class="sheet-input live-box" style="left: 51.43%; top: 24.73%; width: 9.70%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountName-6" class="sheet-input live-box" style="left: 51.43%; top: 27.63%; width: 9.70%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountName-7" class="sheet-input live-box" style="left: 51.43%; top: 30.63%; width: 9.70%; height: 2.20%; text-align: left;">
+
+        <input type="text" id="MountConMod-1" class="sheet-input live-box rollable" style="left: 61.43%; top: 12.82%; width: 3.12%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountConMod-2" class="sheet-input live-box rollable" style="left: 61.43%; top: 15.72%; width: 3.12%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountConMod-3" class="sheet-input live-box rollable" style="left: 61.43%; top: 18.72%; width: 3.12%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountConMod-4" class="sheet-input live-box rollable" style="left: 61.43%; top: 21.72%; width: 3.12%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountConMod-5" class="sheet-input live-box rollable" style="left: 61.43%; top: 24.73%; width: 3.12%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountConMod-6" class="sheet-input live-box rollable" style="left: 61.43%; top: 27.63%; width: 3.12%; height: 2.20%; text-align: left;">
+        <input type="text" id="MountConMod-7" class="sheet-input live-box rollable" style="left: 61.43%; top: 30.63%; width: 3.12%; height: 2.20%; text-align: left;">
+
+        <textarea id="Journal" class="sheet-input live-box" style="left: 66.24%; top: 10.01%; width: 30.87%; height: 24.83%; line-height: 2.64cqw; padding-top: 0.5%; resize: none; overflow-y: hidden; text-align: left;"></textarea>
+
+        <iframe id="iframeMap" style="position: absolute; left: 2.79%; top: 35.64%; width: 78.87%; height: 58.47%; border: none; border-radius: 8px; background: rgba(0,0,0,0.5);"></iframe>
+
+        <input type="text" id="Target-1" class="sheet-input live-box" style="left: 85.78%; top: 39.95%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Event-1" class="sheet-input live-box" style="left: 85.78%; top: 42.25%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Result-1" class="sheet-input live-box" style="left: 85.78%; top: 44.66%; width: 10.77%; height: 2.20%; text-align: left;">
+
+        <input type="text" id="Target-2" class="sheet-input live-box" style="left: 85.78%; top: 49.16%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Event-2" class="sheet-input live-box" style="left: 85.78%; top: 51.46%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Result-2" class="sheet-input live-box" style="left: 85.78%; top: 53.86%; width: 10.77%; height: 2.20%; text-align: left;">
+
+        <input type="text" id="Target-3" class="sheet-input live-box" style="left: 85.78%; top: 58.47%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Event-3" class="sheet-input live-box" style="left: 85.78%; top: 60.77%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Result-3" class="sheet-input live-box" style="left: 85.78%; top: 63.07%; width: 10.77%; height: 2.20%; text-align: left;">
+
+        <input type="text" id="Target-4" class="sheet-input live-box" style="left: 85.78%; top: 67.67%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Event-4" class="sheet-input live-box" style="left: 85.78%; top: 69.97%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Result-4" class="sheet-input live-box" style="left: 85.78%; top: 72.28%; width: 10.77%; height: 2.20%; text-align: left;">
+
+        <input type="text" id="Target-5" class="sheet-input live-box" style="left: 85.78%; top: 76.98%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Event-5" class="sheet-input live-box" style="left: 85.78%; top: 79.28%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Result-5" class="sheet-input live-box" style="left: 85.78%; top: 81.58%; width: 10.77%; height: 2.20%; text-align: left;">
+
+        <input type="text" id="Target-6" class="sheet-input live-box" style="left: 85.78%; top: 86.19%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Event-6" class="sheet-input live-box" style="left: 85.78%; top: 88.59%; width: 10.77%; height: 2.20%; text-align: left;">
+        <input type="text" id="Result-6" class="sheet-input live-box" style="left: 85.78%; top: 90.89%; width: 10.77%; height: 2.20%; text-align: left;">
+    </div>
+
+    <div class="sheet-container hidden-right" id="page-4">
+        <img src="images/lotrrMissionWorksheet.png" alt="Mission Worksheet" class="sheet-bg">
+
+        <input type="text" id="readinessScore" class="sheet-input auto-calc" style="left: 14.88%; top: 12.21%; width: 4.36%; height: 5.75%;" readonly>
+        <input type="text" id="readinessScoreModifier" class="sheet-input auto-calc" style="left: 9.18%; top: 14.06%; width: 6.96%; height: 9.23%;" readonly>
+
+        <div id="bandSizeSm" class="sheet-checkbox" style="left: 4.42%; top: 30.14%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="bandSizeMed" class="sheet-checkbox" style="left: 10.62%; top: 30.21%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="bandSizeLrg" class="sheet-checkbox" style="left: 17.92%; top: 30.27%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="burdenLight" class="sheet-checkbox" style="left: 3.65%; top: 35.56%; width: 1.13%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="burdenMed" class="sheet-checkbox" style="left: 7.75%; top: 35.62%; width: 1.13%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="burdenHvy" class="sheet-checkbox" style="left: 13.05%; top: 35.68%; width: 1.13%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="burdenOver" class="sheet-checkbox" style="left: 17.55%; top: 35.54%; width: 1.13%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <input type="text" id="eyeAwareness" class="sheet-input live-box" style="left: 7.27%; top: 44.36%; width: 4.39%; height: 5.85%;">
+        <input type="text" id="huntThreshold" class="sheet-input live-box" style="left: 16.67%; top: 44.26%; width: 4.39%; height: 5.85%;">
+
+        <div id="weary" class="sheet-checkbox auto-calc" style="left: 8.87%; top: 56.29%; width: 1.26%; height: 1.62%;"></div>
+        <div id="miserable" class="sheet-checkbox auto-calc" style="left: 14.17%; top: 56.27%; width: 1.26%; height: 1.62%;"></div>
+				
+				<input type="button" id="WearyDef" class="clickable-feature" value="Band Weary" style="position: absolute; left: 10.47%; top: 56.47%; width: 2.39%; height: 1.30%; opacity: 0; z-index: 10; cursor: pointer;">
+				<input type="button" id="MiserableDef" class="clickable-feature" value="Band Miserable" style="position: absolute; left: 15.81%; top: 56.47%; width: 3.69%; height: 1.30%; opacity: 0; z-index: 10; cursor: pointer;">
+
+        <textarea id="notes" class="sheet-input live-box" style="left: 2.95%; top: 62.59%; width: 22.83%; height: 25.67%; padding-top: 5px; resize: none; text-align: left;"></textarea>
+
+        <input type="text" id="expertise" class="sheet-input live-box rollable" style="left: 31.30%; top: 14.32%; width: 4.22%; height: 5.64%;">
+        <input type="text" id="manoeuvre" class="sheet-input live-box rollable" style="left: 39.50%; top: 16.89%; width: 4.32%; height: 5.64%;">
+        <input type="text" id="rally" class="sheet-input live-box rollable" style="left: 47.80%; top: 18.02%; width: 4.32%; height: 5.64%;">
+        <input type="text" id="vigilance" class="sheet-input live-box rollable" style="left: 56.10%; top: 16.89%; width: 4.32%; height: 5.64%;">
+        <input type="text" id="war" class="sheet-input live-box rollable" style="left: 64.40%; top: 14.32%; width: 4.32%; height: 5.64%;">
+
+        <input type="text" id="shadowScore" class="sheet-input auto-calc" style="left: 81.26%; top: 13.01%; width: 7.21%; height: 9.28%;" readonly>
+        <input type="text" id="shadowScars" class="sheet-input auto-calc" style="left: 87.43%; top: 18.20%; width: 3.09%; height: 4.06%;" readonly>
+
+        <input type="text" id="nameAlly1" class="sheet-input live-box" style="left: 28.73%; top: 34.74%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly2" class="sheet-input live-box" style="left: 28.73%; top: 39.50%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly3" class="sheet-input live-box" style="left: 28.73%; top: 44.47%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly4" class="sheet-input live-box" style="left: 28.73%; top: 49.23%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly5" class="sheet-input live-box" style="left: 28.73%; top: 54.19%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly6" class="sheet-input live-box" style="left: 28.73%; top: 59.16%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly7" class="sheet-input live-box" style="left: 28.73%; top: 63.92%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly8" class="sheet-input live-box" style="left: 28.73%; top: 68.89%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly9" class="sheet-input live-box" style="left: 28.73%; top: 73.85%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly10" class="sheet-input live-box" style="left: 28.73%; top: 78.82%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly11" class="sheet-input live-box" style="left: 28.73%; top: 83.58%; width: 27.75%; height: 4.56%; text-align: left;">
+        <input type="text" id="nameAlly12" class="sheet-input live-box" style="left: 28.73%; top: 88.54%; width: 27.75%; height: 4.56%; text-align: left;">
+
+        <div id="injuries1Ally1" class="sheet-checkbox" style="left: 57.57%; top: 36.36%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally2" class="sheet-checkbox" style="left: 57.57%; top: 41.14%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally3" class="sheet-checkbox" style="left: 57.57%; top: 46.13%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally4" class="sheet-checkbox" style="left: 57.57%; top: 51.12%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally5" class="sheet-checkbox" style="left: 57.57%; top: 55.90%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally6" class="sheet-checkbox" style="left: 57.57%; top: 60.88%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally7" class="sheet-checkbox" style="left: 57.57%; top: 65.66%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally8" class="sheet-checkbox" style="left: 57.57%; top: 70.65%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally9" class="sheet-checkbox" style="left: 57.57%; top: 75.43%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally10" class="sheet-checkbox" style="left: 57.57%; top: 80.42%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally11" class="sheet-checkbox" style="left: 57.57%; top: 85.20%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries1Ally12" class="sheet-checkbox" style="left: 57.57%; top: 90.19%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="injuries2Ally1" class="sheet-checkbox" style="left: 61.87%; top: 36.42%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally2" class="sheet-checkbox" style="left: 61.87%; top: 41.20%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally3" class="sheet-checkbox" style="left: 61.87%; top: 46.19%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally4" class="sheet-checkbox" style="left: 61.87%; top: 50.97%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally5" class="sheet-checkbox" style="left: 61.87%; top: 55.96%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally6" class="sheet-checkbox" style="left: 61.87%; top: 60.94%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally7" class="sheet-checkbox" style="left: 61.87%; top: 65.73%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally8" class="sheet-checkbox" style="left: 61.87%; top: 70.71%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally9" class="sheet-checkbox" style="left: 61.87%; top: 75.49%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally10" class="sheet-checkbox" style="left: 61.87%; top: 80.48%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally11" class="sheet-checkbox" style="left: 61.87%; top: 85.26%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries2Ally12" class="sheet-checkbox" style="left: 61.87%; top: 90.25%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="injuries3Ally1" class="sheet-checkbox" style="left: 66.17%; top: 36.48%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally2" class="sheet-checkbox" style="left: 66.17%; top: 41.27%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally3" class="sheet-checkbox" style="left: 66.17%; top: 46.05%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally4" class="sheet-checkbox" style="left: 66.17%; top: 51.03%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally5" class="sheet-checkbox" style="left: 66.17%; top: 56.02%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally6" class="sheet-checkbox" style="left: 66.17%; top: 60.80%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally7" class="sheet-checkbox" style="left: 66.17%; top: 65.58%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally8" class="sheet-checkbox" style="left: 66.17%; top: 70.57%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally9" class="sheet-checkbox" style="left: 66.17%; top: 75.55%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally10" class="sheet-checkbox" style="left: 66.17%; top: 80.54%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally11" class="sheet-checkbox" style="left: 66.17%; top: 85.32%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries3Ally12" class="sheet-checkbox" style="left: 66.17%; top: 90.31%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="injuries4Ally1" class="sheet-checkbox" style="left: 70.47%; top: 36.34%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally2" class="sheet-checkbox" style="left: 70.47%; top: 41.12%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally3" class="sheet-checkbox" style="left: 70.47%; top: 46.11%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally4" class="sheet-checkbox" style="left: 70.47%; top: 51.10%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally5" class="sheet-checkbox" style="left: 70.47%; top: 55.88%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally6" class="sheet-checkbox" style="left: 70.47%; top: 60.86%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally7" class="sheet-checkbox" style="left: 70.47%; top: 65.85%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally8" class="sheet-checkbox" style="left: 70.47%; top: 70.63%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally9" class="sheet-checkbox" style="left: 70.47%; top: 75.62%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally10" class="sheet-checkbox" style="left: 70.47%; top: 80.40%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally11" class="sheet-checkbox" style="left: 70.47%; top: 85.38%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries4Ally12" class="sheet-checkbox" style="left: 70.47%; top: 90.16%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="injuries5Ally1" class="sheet-checkbox" style="left: 74.87%; top: 36.40%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally2" class="sheet-checkbox" style="left: 74.87%; top: 41.18%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally3" class="sheet-checkbox" style="left: 74.87%; top: 46.17%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally4" class="sheet-checkbox" style="left: 74.87%; top: 50.95%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally5" class="sheet-checkbox" style="left: 74.87%; top: 55.94%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally6" class="sheet-checkbox" style="left: 74.87%; top: 60.92%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally7" class="sheet-checkbox" style="left: 74.87%; top: 65.71%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally8" class="sheet-checkbox" style="left: 74.87%; top: 70.70%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally9" class="sheet-checkbox" style="left: 74.87%; top: 75.47%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally10" class="sheet-checkbox" style="left: 74.87%; top: 80.46%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally11" class="sheet-checkbox" style="left: 74.87%; top: 85.24%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="injuries5Ally12" class="sheet-checkbox" style="left: 74.87%; top: 90.23%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="fatigue1Ally1" class="sheet-checkbox" style="left: 80.87%; top: 36.46%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally2" class="sheet-checkbox" style="left: 80.87%; top: 41.25%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally3" class="sheet-checkbox" style="left: 80.87%; top: 46.03%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally4" class="sheet-checkbox" style="left: 80.87%; top: 51.01%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally5" class="sheet-checkbox" style="left: 80.87%; top: 56.00%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally6" class="sheet-checkbox" style="left: 80.87%; top: 60.78%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally7" class="sheet-checkbox" style="left: 80.87%; top: 65.77%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally8" class="sheet-checkbox" style="left: 80.87%; top: 70.75%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally9" class="sheet-checkbox" style="left: 80.87%; top: 75.53%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally10" class="sheet-checkbox" style="left: 80.87%; top: 80.32%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally11" class="sheet-checkbox" style="left: 80.87%; top: 85.30%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue1Ally12" class="sheet-checkbox" style="left: 80.87%; top: 90.29%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="fatigue2Ally1" class="sheet-checkbox" style="left: 85.17%; top: 36.32%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally2" class="sheet-checkbox" style="left: 85.17%; top: 41.11%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally3" class="sheet-checkbox" style="left: 85.17%; top: 46.09%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally4" class="sheet-checkbox" style="left: 85.17%; top: 51.07%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally5" class="sheet-checkbox" style="left: 85.17%; top: 55.86%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally6" class="sheet-checkbox" style="left: 85.17%; top: 60.84%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally7" class="sheet-checkbox" style="left: 85.17%; top: 65.83%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally8" class="sheet-checkbox" style="left: 85.17%; top: 70.61%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally9" class="sheet-checkbox" style="left: 85.17%; top: 75.39%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally10" class="sheet-checkbox" style="left: 85.17%; top: 80.38%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally11" class="sheet-checkbox" style="left: 85.17%; top: 85.36%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue2Ally12" class="sheet-checkbox" style="left: 85.17%; top: 90.14%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="fatigue3Ally1" class="sheet-checkbox" style="left: 89.57%; top: 36.38%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally2" class="sheet-checkbox" style="left: 89.57%; top: 41.16%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally3" class="sheet-checkbox" style="left: 89.57%; top: 46.15%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally4" class="sheet-checkbox" style="left: 89.57%; top: 50.93%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally5" class="sheet-checkbox" style="left: 89.57%; top: 55.92%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally6" class="sheet-checkbox" style="left: 89.57%; top: 60.70%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally7" class="sheet-checkbox" style="left: 89.57%; top: 65.68%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally8" class="sheet-checkbox" style="left: 89.57%; top: 70.67%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally9" class="sheet-checkbox" style="left: 89.57%; top: 75.66%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally10" class="sheet-checkbox" style="left: 89.57%; top: 80.44%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally11" class="sheet-checkbox" style="left: 89.57%; top: 85.22%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue3Ally12" class="sheet-checkbox" style="left: 89.57%; top: 90.21%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+        <div id="fatigue4Ally1" class="sheet-checkbox" style="left: 93.77%; top: 36.44%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally2" class="sheet-checkbox" style="left: 93.77%; top: 41.22%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally3" class="sheet-checkbox" style="left: 93.77%; top: 46.21%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally4" class="sheet-checkbox" style="left: 93.77%; top: 50.99%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally5" class="sheet-checkbox" style="left: 93.77%; top: 55.98%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally6" class="sheet-checkbox" style="left: 93.77%; top: 60.76%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally7" class="sheet-checkbox" style="left: 93.77%; top: 65.75%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally8" class="sheet-checkbox" style="left: 93.77%; top: 70.73%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally9" class="sheet-checkbox" style="left: 93.77%; top: 75.51%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally10" class="sheet-checkbox" style="left: 93.77%; top: 80.50%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally11" class="sheet-checkbox" style="left: 93.77%; top: 85.28%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+        <div id="fatigue4Ally12" class="sheet-checkbox" style="left: 93.77%; top: 90.27%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+
+    </div>
+
+    <div class="sheet-container hidden-right" id="page-5">
+        <div id="allies-wrapper" style="width: 100%; position: relative;">
+            <div class="ally-block" id="ally-block-1" style="position: relative; width: 100%; margin-bottom: 20px;">
+                <img src="images/lotrrAlliesCards.png" alt="Allies Background" class="sheet-bg">
+                
+                <input type="text" id="Ally1name" class="sheet-input" style="left: 9.62%; top: 13.22%; width: 12.61%; height: 4.70%;">
+                <div id="Ally1hardened" class="sheet-checkbox" style="left: 26.38%; top: 15.62%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <textarea id="Ally1gift" class="sheet-input" style="left: 4.32%; top: 21.52%; width: 18.81%; height: 7.50%; resize: none; padding-top: 2px;"></textarea>
+                <textarea id="Ally1kinglyGift" class="sheet-input" style="left: 4.32%; top: 32.53%; width: 18.81%; height: 7.50%; resize: none; padding-top: 2px;"></textarea>
+                <div id="Ally1giftWasted" class="sheet-checkbox" style="left: 26.38%; top: 26.62%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally1kinglyGiftWasted" class="sheet-checkbox" style="left: 26.38%; top: 37.72%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <textarea id="Ally1notes" class="sheet-input live-box" style="left: 28.32%; top: 13.22%; width: 19.71%; height: 26.80%; resize: none; padding-top: 2px;"></textarea>
+                
+                <div id="Ally1injuries" class="sheet-checkbox" style="left: 7.34%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally1injuries-2" class="sheet-checkbox" style="left: 11.63%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally1injuries-3" class="sheet-checkbox" style="left: 15.95%; top: 45.36%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally1injuries-4" class="sheet-checkbox" style="left: 20.23%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally1injuries-5" class="sheet-checkbox" style="left: 24.55%; top: 45.36%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                
+                <div id="Ally1fatigue" class="sheet-checkbox" style="left: 31.16%; top: 45.36%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally1fatigue-2" class="sheet-checkbox" style="left: 35.48%; top: 45.36%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally1fatigue-3" class="sheet-checkbox" style="left: 39.77%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally1fatigue-4" class="sheet-checkbox" style="left: 44.09%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+
+                <input type="text" id="Ally2name" class="sheet-input" style="left: 57.43%; top: 13.22%; width: 12.61%; height: 4.70%;">
+                <div id="Ally2hardened" class="sheet-checkbox" style="left: 74.19%; top: 15.62%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <textarea id="Ally2gift" class="sheet-input" style="left: 52.13%; top: 21.52%; width: 18.81%; height: 7.50%; resize: none; padding-top: 2px;"></textarea>
+                <textarea id="Ally2kinglyGift" class="sheet-input" style="left: 52.13%; top: 32.53%; width: 18.81%; height: 7.50%; resize: none; padding-top: 2px;"></textarea>
+                <div id="Ally2giftWasted" class="sheet-checkbox" style="left: 74.19%; top: 26.62%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally2kinglyGiftWasted" class="sheet-checkbox" style="left: 74.19%; top: 37.72%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <textarea id="Ally2notes" class="sheet-input live-box" style="left: 76.13%; top: 13.22%; width: 19.71%; height: 26.80%; resize: none; padding-top: 2px;"></textarea>
+                
+                <div id="Ally2injuries" class="sheet-checkbox" style="left: 55.15%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally2injuries-2" class="sheet-checkbox" style="left: 59.44%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally2injuries-3" class="sheet-checkbox" style="left: 63.76%; top: 45.36%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally2injuries-4" class="sheet-checkbox" style="left: 68.04%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally2injuries-5" class="sheet-checkbox" style="left: 72.36%; top: 45.36%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                
+                <div id="Ally2fatigue" class="sheet-checkbox" style="left: 78.97%; top: 45.36%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally2fatigue-2" class="sheet-checkbox" style="left: 83.29%; top: 45.36%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally2fatigue-3" class="sheet-checkbox" style="left: 87.58%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally2fatigue-4" class="sheet-checkbox" style="left: 91.90%; top: 45.36%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+
+                <input type="text" id="Ally3name" class="sheet-input" style="left: 9.62%; top: 56.97%; width: 12.61%; height: 4.70%;">
+                <div id="Ally3hardened" class="sheet-checkbox" style="left: 26.38%; top: 59.37%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <textarea id="Ally3gift" class="sheet-input" style="left: 4.32%; top: 65.27%; width: 18.81%; height: 7.50%; resize: none; padding-top: 2px;"></textarea>
+                <textarea id="Ally3kinglyGift" class="sheet-input" style="left: 4.32%; top: 76.28%; width: 18.81%; height: 7.50%; resize: none; padding-top: 2px;"></textarea>
+                <div id="Ally3giftWasted" class="sheet-checkbox" style="left: 26.38%; top: 70.37%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally3kinglyGiftWasted" class="sheet-checkbox" style="left: 26.38%; top: 81.47%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <textarea id="Ally3notes" class="sheet-input live-box" style="left: 28.32%; top: 56.97%; width: 19.71%; height: 26.80%; resize: none; padding-top: 2px;"></textarea>
+                
+                <div id="Ally3injuries" class="sheet-checkbox" style="left: 7.34%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally3injuries-2" class="sheet-checkbox" style="left: 11.63%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally3injuries-3" class="sheet-checkbox" style="left: 15.95%; top: 89.11%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally3injuries-4" class="sheet-checkbox" style="left: 20.23%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally3injuries-5" class="sheet-checkbox" style="left: 24.55%; top: 89.11%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                
+                <div id="Ally3fatigue" class="sheet-checkbox" style="left: 31.16%; top: 89.11%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally3fatigue-2" class="sheet-checkbox" style="left: 35.48%; top: 89.11%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally3fatigue-3" class="sheet-checkbox" style="left: 39.77%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally3fatigue-4" class="sheet-checkbox" style="left: 44.09%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+
+                <input type="text" id="Ally4name" class="sheet-input" style="left: 57.43%; top: 56.97%; width: 12.61%; height: 4.70%;">
+                <div id="Ally4hardened" class="sheet-checkbox" style="left: 74.19%; top: 59.37%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <textarea id="Ally4gift" class="sheet-input" style="left: 52.13%; top: 65.27%; width: 18.81%; height: 7.50%; resize: none; padding-top: 2px;"></textarea>
+                <textarea id="Ally4kinglyGift" class="sheet-input" style="left: 52.13%; top: 76.28%; width: 18.81%; height: 7.50%; resize: none; padding-top: 2px;"></textarea>
+                <div id="Ally4giftWasted" class="sheet-checkbox" style="left: 74.19%; top: 70.37%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally4kinglyGiftWasted" class="sheet-checkbox" style="left: 74.19%; top: 81.47%; width: 1.16%; height: 1.50%;" onclick="cycleCheck(this)"></div>
+                <textarea id="Ally4notes" class="sheet-input live-box" style="left: 76.13%; top: 56.97%; width: 19.71%; height: 26.80%; resize: none; padding-top: 2px;"></textarea>
+                
+                <div id="Ally4injuries" class="sheet-checkbox" style="left: 55.15%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally4injuries-2" class="sheet-checkbox" style="left: 59.44%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally4injuries-3" class="sheet-checkbox" style="left: 63.76%; top: 89.11%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally4injuries-4" class="sheet-checkbox" style="left: 68.04%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally4injuries-5" class="sheet-checkbox" style="left: 72.36%; top: 89.11%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                
+                <div id="Ally4fatigue" class="sheet-checkbox" style="left: 78.97%; top: 89.11%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally4fatigue-2" class="sheet-checkbox" style="left: 83.29%; top: 89.11%; width: 1.23%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally4fatigue-3" class="sheet-checkbox" style="left: 87.58%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+                <div id="Ally4fatigue-4" class="sheet-checkbox" style="left: 91.90%; top: 89.11%; width: 1.26%; height: 1.60%;" onclick="cycleCheck(this)"></div>
+            </div>
+        </div>
+        <div style="display: flex; justify-content: center; gap: 15px; padding: 10px 0 25px 0;">
+            <button onclick="addAllyBlock()" style="background-color: #4a0000; color: #d4af37; font-family: serif; font-size: 16px; padding: 10px 20px; border: 2px solid #d4af37; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">+ Add More Allies</button>
+            <button onclick="removeAllyBlock()" style="background-color: #333; color: white; font-family: sans-serif; font-size: 14px; padding: 10px 15px; border: 1px solid #4a0000; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">- Remove Last Sheet</button>
+        </div>
+    </div>
+
+    <div id="tab-container">
+        <div style="display: flex; width: 100%; background-color: #2a2a2a; border-top: 2px solid #d4af37; border-bottom: 2px solid #d4af37;">
+            <div onclick="toggleMenu()" style="flex: 1; text-align: center; color: #d4af37; font-weight: bold; padding: 10px 0; cursor: pointer; font-size: 0.9em;">
+                — SETTINGS & MENU —
+            </div>
+        </div>
+        <div id="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('page-1', this)">Front</button>
+            <button class="tab-btn" onclick="switchTab('page-2', this)">Back</button>
+            <button class="tab-btn" onclick="switchTab('page-3', this)">Journey</button>
+            <button class="tab-btn" onclick="switchTab('page-4', this)">Band</button>
+            <button class="tab-btn" onclick="switchTab('page-5', this)">Allies</button>
+        </div>
+    </div>
+
+    <script src="database.js"></script>
+    <script src="default.js"></script>
+</body>
+</html>
