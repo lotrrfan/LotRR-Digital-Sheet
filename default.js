@@ -2139,7 +2139,7 @@ function sendToEncounterPlus(commandString) {
         source: charName,       
         color: charColor,    
         type: "roll",
-        content: cleanFormula
+        text: cleanFormula
     };
 
     fetch(url, {
