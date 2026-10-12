@@ -2197,7 +2197,7 @@ function sendToNtfy(commandString) {
 
     const encodedFormula = encodeURIComponent(diceFormula);
     const encodedTag = encodeURIComponent(`${charName} - ${rollLabel}`);
-    const deepLinkUrl = `encounterplus://roll/${encodedFormula}%20${encodedTag}`;
+    const deepLinkUrl = `encounterplus:///roll/${encodedFormula}%20${encodedTag}`;
     const notificationBody = `${charName}: ${diceFormula} [${rollLabel}]`;
 
     fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
