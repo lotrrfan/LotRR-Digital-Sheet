@@ -2138,8 +2138,8 @@ function sendToEncounterPlus(commandString) {
     const payload = {
         source: charName,       
         color: charColor,    
-        type: "roll",
-        text: cleanFormula
+        type: "command",
+        content: commandString
     };
 
     fetch(url, {
