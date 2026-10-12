@@ -2133,11 +2133,13 @@ function sendToEncounterPlus(commandString) {
     const charName = nameEl ? nameEl.value.trim() || "Player" : "Player";
     const charColor = "#4a0000"; 
 
+    const cleanFormula = commandString.replace(/^\/roll\s+/i, '').trim();
+
     const payload = {
         source: charName,       
         color: charColor,    
-        type: "command",
-        content: commandString
+        type: "roll",
+        content: cleanFormula
     };
 
     fetch(url, {
